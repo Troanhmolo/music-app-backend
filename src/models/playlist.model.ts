@@ -1,6 +1,13 @@
-import mongoose from 'mongoose';
+import mongoose, { type Types } from 'mongoose';
 
-const playlistSchema = new mongoose.Schema({
+export interface IPlaylist {
+    name: string;
+    user: Types.ObjectId;
+    songs: Types.Array<Types.ObjectId>;
+    createdAt: Date;
+}
+
+const playlistSchema = new mongoose.Schema<IPlaylist>({
     name: {
         type: String,
         default:"playlist",
@@ -19,6 +26,6 @@ const playlistSchema = new mongoose.Schema({
         },
     ],
     createdAt: { type: Date, default: Date.now }
-}, { strictPopulate: false });
+});
 
-export const Playlist = mongoose.model('Playlist', playlistSchema);
+export const Playlist = mongoose.model<IPlaylist>('Playlist', playlistSchema);

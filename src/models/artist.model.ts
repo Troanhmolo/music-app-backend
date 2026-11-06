@@ -1,6 +1,15 @@
-import mongoose from "mongoose";
+import mongoose, { type Types } from "mongoose";
 
-const artistSchema = new mongoose.Schema(
+export interface IArtist {
+    name: string;
+    imageUrl: string;
+    albums: Types.ObjectId[];
+    songs: Types.ObjectId[];
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const artistSchema = new mongoose.Schema<IArtist>(
     {
         name: {
             type: String,
@@ -27,4 +36,4 @@ const artistSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-export const Artist = mongoose.model("Artist", artistSchema);
+export const Artist = mongoose.model<IArtist>("Artist", artistSchema);

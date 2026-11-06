@@ -1,7 +1,8 @@
+import type { RequestHandler } from "express";
 import {Favorite} from "../models/favorite.model.js";
 import { Song } from "../models/song.model.js";
 
-export const getFavoriteSongs = async (req, res, next) => {
+export const getFavoriteSongs: RequestHandler = async (req, res, next) => {
     try {
         const {user} = req.params;
 
@@ -14,7 +15,7 @@ export const getFavoriteSongs = async (req, res, next) => {
     }
 }
 
-export const getFavoriteSongsMobile = async (req, res, next) => {
+export const getFavoriteSongsMobile: RequestHandler = async (req, res, next) => {
     try {
         const {user} = req.params;
 
@@ -27,7 +28,7 @@ export const getFavoriteSongsMobile = async (req, res, next) => {
     }
 }
 
-export const toggleFavoriteSong = async (req, res, next) => {
+export const toggleFavoriteSong: RequestHandler = async (req, res, next) => {
   try {
     const { user, song } = req.body;
 
@@ -36,19 +37,21 @@ export const toggleFavoriteSong = async (req, res, next) => {
     if (exists) {
       // Remove from favorites
       await Favorite.findOneAndDelete({ user, song });
-      return res.status(200).json({ message: "Song removed from favorites", favorited: false });
+      res.status(200).json({ message: "Song removed from favorites", favorited: false });
+      return;
     } else {
       // Add to favorites
       const favorite = new Favorite({ user, song });
       await favorite.save();
-      return res.status(201).json({ message: "Song added to favorites", favorited: true });
+      res.status(201).json({ message: "Song added to favorites", favorited: true });
+      return;
     }
   } catch (error) {
     next(error);
   }
 };
 
-export const toggleFavoriteSongMobile = async (req, res, next) => {
+export const toggleFavoriteSongMobile: RequestHandler = async (req, res, next) => {
   try {
     const { user, song } = req.body;
 
@@ -57,12 +60,14 @@ export const toggleFavoriteSongMobile = async (req, res, next) => {
     if (exists) {
       // Remove from favorites
       await Favorite.findOneAndDelete({ user, song });
-      return res.status(200).json({ message: "Song removed from favorites", favorited: false });
+      res.status(200).json({ message: "Song removed from favorites", favorited: false });
+      return;
     } else {
       // Add to favorites
       const favorite = new Favorite({ user, song });
       await favorite.save();
-      return res.status(201).json({ message: "Song added to favorites", favorited: true });
+      res.status(201).json({ message: "Song added to favorites", favorited: true });
+      return;
     }
   } catch (error) {
     next(error);

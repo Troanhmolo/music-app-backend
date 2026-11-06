@@ -1,6 +1,16 @@
-import mongoose from "mongoose";
+import mongoose, { type Types } from "mongoose";
 
-const albumSchema = new mongoose.Schema(
+export interface IAlbum {
+	title: string;
+	artist: Types.ObjectId;
+	imageUrl: string;
+	releaseYear: number;
+	songs: Types.ObjectId[];
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+const albumSchema = new mongoose.Schema<IAlbum>(
 	{
 		title: { 
 			type: String, 
@@ -29,4 +39,4 @@ const albumSchema = new mongoose.Schema(
 	{ timestamps: true }
 ); //  createdAt, updatedAt
 
-export const Album = mongoose.model("Album", albumSchema);
+export const Album = mongoose.model<IAlbum>("Album", albumSchema);

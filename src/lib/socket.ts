@@ -1,6 +1,7 @@
+import type { Server as HttpServer } from "http";
 import { Server } from "socket.io";
 
-export const initializeSocket = (server) => {
+export const initializeSocket = (server: HttpServer) => {
 	const io = new Server(server, {
 		cors: {
 			origin: "http://localhost:3000",
@@ -8,11 +9,11 @@ export const initializeSocket = (server) => {
 		},
 	});
 
-	const userSockets = new Map(); // { userId: socketId}
-	const userActivities = new Map(); // {userId: activity}
+	const userSockets = new Map<string, string>(); // { userId: socketId}
+	const userActivities = new Map<string, string>(); // {userId: activity}
 
 	io.on("connection", (socket) => {
-		socket.on("user_connected", (userId) => {
+		socket.on("user_connected", (userId: string) => {
 			userSockets.set(userId, socket.id);
 			userActivities.set(userId, "Idle");
 
@@ -24,14 +25,14 @@ export const initializeSocket = (server) => {
 			io.emit("activities", Array.from(userActivities.entries()));
 		});
 
-		socket.on("update_activity", ({ userId, activity }) => {
+		socket.on("update_activity", ({ userId, activity }: { userId: string; activity: string }) => {
 			console.log("activity updated", userId, activity);
 			userActivities.set(userId, activity);
 			io.emit("activity_updated", { userId, activity });
 		});
 
 		socket.on("disconnect", () => {
-			let disconnectedUserId;
+			let disconnectedUserId: string | undefined;
 			for (const [userId, socketId] of userSockets.entries()) {
 				// find disconnected user
 				if (socketId === socket.id) {

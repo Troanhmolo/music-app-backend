@@ -1,3 +1,6 @@
+import type { RequestHandler } from "express";
+import type { UploadedFile } from "express-fileupload";
+import type { Types } from "mongoose";
 import { Song } from "../models/song.model.js";
 import { Album } from "../models/album.model.js";
 import cloudinary from "../lib/cloudinary.js";
@@ -5,8 +8,12 @@ import { Artist } from "../models/artist.model.js";
 import { User } from "../models/user.model.js";
 import { Favorite } from "../models/favorite.model.js";
 
+// express-fileupload yields an array when a field is sent more than once
+const singleFile = (file: UploadedFile | UploadedFile[]): UploadedFile =>
+	Array.isArray(file) ? file[0] : file;
+
 // helper function for cloudinary uploads
-const uploadToCloudinary = async (file) => {
+const uploadToCloudinary = async (file: UploadedFile) => {
 	try {
 		const result = await cloudinary.uploader.upload(file.tempFilePath, {
 			resource_type: "auto",
@@ -18,15 +25,16 @@ const uploadToCloudinary = async (file) => {
 	}
 };
 
-export const createSong = async (req, res, next) => {
+export const createSong: RequestHandler = async (req, res, next) => {
 	try {
 		if (!req.files || !req.files.audioFile || !req.files.imageFile) {
-			return res.status(400).json({ message: "Please upload all files" });
+			res.status(400).json({ message: "Please upload all files" });
+			return;
 		}
 
 		const { title, artist, album, genre } = req.body;
-		const audioFile = req.files.audioFile;
-		const imageFile = req.files.imageFile;
+		const audioFile = singleFile(req.files.audioFile);
+		const imageFile = singleFile(req.files.imageFile);
 
 		const audioUpload = await cloudinary.uploader.upload(audioFile.tempFilePath, {resource_type: "auto",});
 		const duration = `${Math.floor(audioUpload.duration/60)}:${Math.floor(audioUpload.duration%60)}` ;
@@ -63,7 +71,7 @@ export const createSong = async (req, res, next) => {
 	}
 };
 
-export const updateSong = async (req, res, next) => {
+export const updateSong: RequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { title, artist, album, genre } = req.body;
@@ -71,7 +79,8 @@ export const updateSong = async (req, res, next) => {
     // Find the song
     const song = await Song.findById(id);
     if (!song) {
-      return res.status(404).json({ message: "Song not found" });
+      res.status(404).json({ message: "Song not found" });
+      return;
     }
 
     // Handle optional file uploads
@@ -80,10 +89,10 @@ export const updateSong = async (req, res, next) => {
     let duration = song.duration;
 
     if (req.files?.imageFile) {
-      imageUrl = await uploadToCloudinary(req.files.imageFile);
+      imageUrl = await uploadToCloudinary(singleFile(req.files.imageFile));
     }
     if (req.files?.audioFile) {
-      const audioUpload = await cloudinary.uploader.upload(req.files.audioFile.tempFilePath, { resource_type: "auto" });
+      const audioUpload = await cloudinary.uploader.upload(singleFile(req.files.audioFile).tempFilePath, { resource_type: "auto" });
       audioUrl = audioUpload.secure_url;
       duration = `${Math.floor(audioUpload.duration/60)}:${Math.floor(audioUpload.duration%60)}`;
     }
@@ -106,7 +115,7 @@ export const updateSong = async (req, res, next) => {
   }
 };
 
-export const deleteSong = async (req, res, next) => {
+export const deleteSong: RequestHandler<{ id: string }> = async (req, res, next) => {
 	try {
 		const { id } = req.params;
 
@@ -119,8 +128,11 @@ export const deleteSong = async (req, res, next) => {
 	}
 };
 
-const deleteSongById = async (songId) => {
+const deleteSongById = async (songId: string | Types.ObjectId) => {
     const song = await Song.findById(songId);
+    if (!song) {
+        throw new Error("Song not found");
+    }
 
 	// if song belongs to an album, update the album songs array
     if (song.album) {
@@ -152,15 +164,14 @@ const deleteSongById = async (songId) => {
     await Song.findByIdAndDelete(songId);
 };
 
-export const createAlbum = async (req, res, next) => {
+export const createAlbum: RequestHandler = async (req, res, next) => {
 	try {
 		if (!req.files || !req.files.imageFile) {
-			return res.status(400).json({ message: "Please upload all files" });
+			res.status(400).json({ message: "Please upload all files" });
+			return;
 		}
 		const { title, artist, releaseYear } = req.body;
-		const { imageFile } = req.files;
-
-		const imageUrl = await uploadToCloudinary(imageFile);
+		const imageUrl = await uploadToCloudinary(singleFile(req.files.imageFile));
 
 		const album = new Album({
 			title,
@@ -182,10 +193,14 @@ export const createAlbum = async (req, res, next) => {
 	}
 };
 
-export const deleteAlbum = async (req, res, next) => {
+export const deleteAlbum: RequestHandler = async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const album = await Album.findById(id);
+		if (!album) {
+			res.status(404).json({ message: "Album not found" });
+			return;
+		}
 
 		const songsInAlbum = await Song.find({ album: id});
 
@@ -210,20 +225,21 @@ export const deleteAlbum = async (req, res, next) => {
 	}
 };
 
-export const createArtist = async (req, res, next) => {
+export const createArtist: RequestHandler = async (req, res, next) => {
 	try {
 		if (!req.files || !req.files.imageFile) {
-			return res.status(400).json({ message: "Please upload all files" });
+			res.status(400).json({ message: "Please upload all files" });
+			return;
 		}
 		const { name } = req.body;
 
 		const existingArtistName = await Artist.findOne({ name });
 		if (existingArtistName) {
-			return res.status(400).json({ message: "Artist name already exists, please use a diffrent one" });
+			res.status(400).json({ message: "Artist name already exists, please use a diffrent one" });
+			return;
 		}
 
-		const { imageFile } = req.files;
-		const imageUrl = await uploadToCloudinary(imageFile);
+		const imageUrl = await uploadToCloudinary(singleFile(req.files.imageFile));
 
 		const artist = new Artist({
 			name,
@@ -239,10 +255,14 @@ export const createArtist = async (req, res, next) => {
 	}
 };
 
-export const deleteArtist = async (req, res, next) => {
+export const deleteArtist: RequestHandler = async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const artist = await Artist.findById(id);
+		if (!artist) {
+			res.status(404).json({ message: "Artist not found" });
+			return;
+		}
 		const albumsByArtist = await Album.find({ artist: id });
 		albumsByArtist.forEach(async (album) => {
 			const songsInAlbum = await Song.find({ album: album._id });
@@ -275,14 +295,15 @@ export const deleteArtist = async (req, res, next) => {
 	}
 };
 
-export const updateRole = async (req, res, next) => {
+export const updateRole: RequestHandler = async (req, res, next) => {
 	const { id } = req.params;
     const { role } = req.body;
 
     try {
         const user = await User.findById(id);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            res.status(404).json({ message: 'User not found' });
+            return;
         }
 
         // Update the role
@@ -296,13 +317,14 @@ export const updateRole = async (req, res, next) => {
     }
 };
 
-export const deleteUser = async (req, res, next) => {
+export const deleteUser: RequestHandler = async (req, res, next) => {
 	const { id } = req.params;
 
 	try {
 		const user = await User.findById(id);
 		if (!user) {
-			return res.status(404).json({ message: "User not found" });
+			res.status(404).json({ message: "User not found" });
+			return;
 		}
 		const favorites = await Favorite.find({ user: id });
 		if (favorites.length > 0) {
@@ -316,11 +338,11 @@ export const deleteUser = async (req, res, next) => {
 	}
 };
 
-export const checkAdmin = async (req, res, next) => {
+export const checkAdmin: RequestHandler = async (req, res, next) => {
 	res.status(200).json({ admin: true });
 };
 
-function getCloudinaryPublicId(url) {
+function getCloudinaryPublicId(url: string) {
     // Example: https://res.cloudinary.com/demo/video/upload/v1234567890/folder/filename.mp3
     // Extract 'folder/filename' (without extension and version)
     try {

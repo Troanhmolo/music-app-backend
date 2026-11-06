@@ -6,6 +6,7 @@ import path from "path";
 import cors from "cors";
 import fs from "fs";
 import { createServer } from "http";
+import type { ErrorRequestHandler } from "express";
 import cron from "node-cron";
 
 
@@ -24,11 +25,11 @@ import searchRoutes from "./routes/search.route.js";
 import playlistRoutes from "./routes/playlist.route.js"
 
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const __dirname = path.resolve();
 const app = express();
-const PORT = process.env.PORT;
+const PORT = process.env.PORT ? Number(process.env.PORT) : undefined;
 
 const httpServer = createServer(app);
 initializeSocket(httpServer);
@@ -54,6 +55,12 @@ app.use(
 		},
 	})
 );
+
+// Express 5 leaves req.body undefined when nothing was parsed; handlers destructure it.
+app.use((req, _res, next) => {
+	req.body ??= {};
+	next();
+});
 
 // cron jobs
 const tempDir = path.join(process.cwd(), "tmp");
@@ -84,16 +91,17 @@ app.use("/api/playlists", playlistRoutes);
 
 if (process.env.NODE_ENV === "production") {
 	app.use(express.static(path.join(__dirname, "../frontend/dist")));
-	app.get("*", (req, res) => {
+	app.get("/{*splat}", (req, res) => {
 		res.sendFile(path.resolve(__dirname, "../frontend", "dist", "index.html"));
 	});
 }
 
 // error handler
-app.use((err, req, res, next) => {
+const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 	console.error(err.stack); // Log the error stack for debugging
 	res.status(500).json({ message: process.env.NODE_ENV === "production" ? "Internal server error" : err.message });
-});
+};
+app.use(errorHandler);
 
 httpServer.listen(PORT, () => {
 	console.log("Server is running on port " + PORT);

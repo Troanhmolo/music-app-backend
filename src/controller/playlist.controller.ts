@@ -1,25 +1,28 @@
+import type { RequestHandler } from "express";
+import { Types } from "mongoose";
 import { Playlist } from "../models/playlist.model.js";
 
 
 
-export const getPlaylists = async (req, res, next) => {
+export const getPlaylists: RequestHandler = async (req, res, next) => {
     try {
         const {userId} = req.params;
-        const playlists = await Playlist.find({ user: userId }).populate("song");
+        const playlists = await Playlist.find({ user: userId });
         res.status(200).json(playlists);
     } catch (error) {
         next(error);
     }
 }
 
-export const getPlaylistById = async (req, res, next) => {
+export const getPlaylistById: RequestHandler = async (req, res, next) => {
   try {
     const { playlistId } = req.params;
 
     const playlist = await Playlist.findById(playlistId).populate("user");
 
     if (!playlist) {
-      return res.status(404).json({ message: "Playlist not found" });
+      res.status(404).json({ message: "Playlist not found" });
+      return;
     }
 
     res.status(200).json(playlist);
@@ -30,7 +33,7 @@ export const getPlaylistById = async (req, res, next) => {
 
 
 
-export const createPlaylist = async (req, res, next) => {
+export const createPlaylist: RequestHandler = async (req, res, next) => {
   try {
     const { name, userId, songIds } = req.body;
 
@@ -47,7 +50,7 @@ export const createPlaylist = async (req, res, next) => {
   }
 };
 
-export const updatePlaylist = async (req, res, next) => {
+export const updatePlaylist: RequestHandler = async (req, res, next) => {
   try {
     const { playlistId } = req.params;
     const { name, songIds } = req.body;
@@ -58,11 +61,12 @@ export const updatePlaylist = async (req, res, next) => {
         ...(name && { name }),
         ...(songIds && { songs: songIds }),
       },
-      { new: true }
+      { returnDocument: "after" }
     ).populate("songs");
 
     if (!playlist) {
-      return res.status(404).json({ message: "Playlist not found" });
+      res.status(404).json({ message: "Playlist not found" });
+      return;
     }
 
     res.status(200).json(playlist);
@@ -71,14 +75,15 @@ export const updatePlaylist = async (req, res, next) => {
   }
 };
 
-export const deletePlaylist = async (req, res, next) => {
+export const deletePlaylist: RequestHandler = async (req, res, next) => {
   try {
     const { playlistId } = req.params;
 
     const deleted = await Playlist.findByIdAndDelete(playlistId);
 
     if (!deleted) {
-      return res.status(404).json({ message: "Playlist not found" });
+      res.status(404).json({ message: "Playlist not found" });
+      return;
     }
 
     res.status(200).json({ message: "Playlist deleted" });
@@ -87,18 +92,20 @@ export const deletePlaylist = async (req, res, next) => {
   }
 };
 
-export const addSongToPlaylist = async (req, res, next) => {
+export const addSongToPlaylist: RequestHandler<{ playlistId: string; songId: string }> = async (req, res, next) => {
   try {
     const { playlistId, songId } = req.params;
 
     const playlist = await Playlist.findById(playlistId);
     if (!playlist) {
-      return res.status(404).json({ message: 'Playlist not found' });
+      res.status(404).json({ message: 'Playlist not found' });
+      return;
     }
 
     // Avoid duplicates
-    if (!playlist.songs.includes(songId)) {
-      playlist.songs.push(songId);
+    const songObjectId = new Types.ObjectId(songId);
+    if (!playlist.songs.includes(songObjectId)) {
+      playlist.songs.push(songObjectId);
       await playlist.save();
     }
 
@@ -109,12 +116,15 @@ export const addSongToPlaylist = async (req, res, next) => {
   }
 };
 
-export const removeSongFromPlaylist = async (req, res, next) => {
+export const removeSongFromPlaylist: RequestHandler = async (req, res, next) => {
   const { playlistId, songId } = req.params;
 
   try {
     const playlist = await Playlist.findById(playlistId);
-    if (!playlist) return res.status(404).json({ message: 'Playlist not found' });
+    if (!playlist) {
+    	res.status(404).json({ message: 'Playlist not found' });
+    	return;
+    }
 
     playlist.songs.pull(songId);
     await playlist.save();

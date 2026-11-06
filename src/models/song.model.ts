@@ -1,6 +1,18 @@
-import mongoose from "mongoose";
+import mongoose, { type Types } from "mongoose";
 
-const songSchema = new mongoose.Schema(
+export interface ISong {
+	title: string;
+	artist: Types.ObjectId;
+	imageUrl: string;
+	audioUrl: string;
+	genre?: string;
+	album?: Types.ObjectId | null;
+	duration: string;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+const songSchema = new mongoose.Schema<ISong>(
 	{
 		title: {
 			type: String,
@@ -36,4 +48,4 @@ const songSchema = new mongoose.Schema(
 	{ timestamps: true }
 );
 
-export const Song = mongoose.model("Song", songSchema);
+export const Song = mongoose.model<ISong>("Song", songSchema);

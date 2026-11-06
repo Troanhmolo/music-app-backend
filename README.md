@@ -27,6 +27,13 @@ npm install
 npm run dev
 ```
 
+## Build
+
+```bash
+npm run build
+npm start
+```
+
 ## Demo
 Demo Web App: https://music-web-app-9xt9.onrender.com
 

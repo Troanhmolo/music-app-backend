@@ -1,27 +1,34 @@
+import type { Request, Response } from "express";
 import {User}  from "../models/user.model.js";
 import jwt from "jsonwebtoken";
+import cloudinary from "../lib/cloudinary.js";
+import { requireEnv } from "../lib/env.js";
 
-export async function signup(req, res) {
+export async function signup(req: Request, res: Response) {
 	const { email, password, username } = req.body;
 	
 	try {
 		if (!email || !password || !username) {
-		return res.status(400).json({ message: "All fields are required" });
+		res.status(400).json({ message: "All fields are required" });
+		return;
 		}
 
 		if (password.length < 6) {
-		return res.status(400).json({ message: "Password must be at least 6 characters" });
+		res.status(400).json({ message: "Password must be at least 6 characters" });
+		return;
 		}
 
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 		if (!emailRegex.test(email)) {
-		return res.status(400).json({ message: "Invalid email format" });
+		res.status(400).json({ message: "Invalid email format" });
+		return;
 		}
 
 		const existingEmail = await User.findOne({ email });
 		if (existingEmail) {
-		return res.status(400).json({ message: "Email already exists, please use a diffrent one" });
+		res.status(400).json({ message: "Email already exists, please use a diffrent one" });
+		return;
 		}
 
 		const idx = Math.floor(Math.random() * 100) + 1; // generate a num between 1-100
@@ -34,7 +41,7 @@ export async function signup(req, res) {
 			profileImage: randomAvatar,
 		});
 
-		const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET_KEY, {
+		const token = jwt.sign({ userId: newUser._id }, requireEnv("JWT_SECRET_KEY"), {
       		expiresIn: "7d",
     	});
 
@@ -55,21 +62,28 @@ export async function signup(req, res) {
 	}
 }
 
-export async function login(req, res) {
+export async function login(req: Request, res: Response) {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+      res.status(400).json({ message: "All fields are required" });
+      return;
     }
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ message: "Invalid email or password" });
+    if (!user) {
+    	res.status(401).json({ message: "Invalid email or password" });
+    	return;
+    }
 
     const isPasswordCorrect = await user.matchPassword(password);
-    if (!isPasswordCorrect) return res.status(401).json({ message: "Invalid email or password" });
+    if (!isPasswordCorrect) {
+    	res.status(401).json({ message: "Invalid email or password" });
+    	return;
+    }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET_KEY, {
+    const token = jwt.sign({ userId: user._id }, requireEnv("JWT_SECRET_KEY"), {
       expiresIn: "7d",
     });
 
@@ -82,30 +96,31 @@ export async function login(req, res) {
 
     res.status(200).json({ success: true, user, token });
   } catch (error) {
-    console.log("Error in login controller", error.message);
+    console.log("Error in login controller", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
 
-export function logout(req, res) {
+export function logout(req: Request, res: Response) {
   res.clearCookie("jwt");
   res.status(200).json({ success: true, message: "Logout successful" });
 }
 
-export const updateProfile = async (req, res) => {
+export const updateProfile = async (req: Request, res: Response) => {
   try {
     const { profilePic } = req.body;
-    const userId = req.user._id;
+    const userId = req.user!._id;
 
     if (!profilePic) {
-      return res.status(400).json({ message: "Profile pic is required" });
+      res.status(400).json({ message: "Profile pic is required" });
+      return;
     }
 
     const uploadResponse = await cloudinary.uploader.upload(profilePic);
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { profilePic: uploadResponse.secure_url },
-      { new: true }
+      { profileImage: uploadResponse.secure_url },
+      { returnDocument: "after" }
     );
 
     res.status(200).json(updatedUser);
@@ -115,11 +130,11 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-export const checkAuth = (req, res) => {
+export const checkAuth = (req: Request, res: Response) => {
   try {
     res.status(200).json(req.user);
   } catch (error) {
-    console.log("Error in checkAuth controller", error.message);
+    console.log("Error in checkAuth controller", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };

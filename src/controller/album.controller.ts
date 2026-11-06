@@ -1,6 +1,7 @@
+import type { RequestHandler } from "express";
 import { Album } from "../models/album.model.js";
 
-export const getAllAlbums = async (req, res, next) => {
+export const getAllAlbums: RequestHandler = async (req, res, next) => {
 	try {
 		const albums = await Album.find().populate("songs").populate("artist");
 		res.status(200).json(albums);
@@ -9,14 +10,15 @@ export const getAllAlbums = async (req, res, next) => {
 	}
 };
 
-export const getAlbumById = async (req, res, next) => {
+export const getAlbumById: RequestHandler = async (req, res, next) => {
 	try {
 		const { albumId } = req.params;
 
 		const album = await Album.findById(albumId).populate("songs").populate("artist");
 
 		if (!album) {
-			return res.status(404).json({ message: "Album not found" });
+			res.status(404).json({ message: "Album not found" });
+			return;
 		}
 
 		res.status(200).json(album);
@@ -25,7 +27,7 @@ export const getAlbumById = async (req, res, next) => {
 	}
 };
 
-export const getAlbumsByArtistId = async (req, res, next) => {
+export const getAlbumsByArtistId: RequestHandler = async (req, res, next) => {
     
     try {
 		const { artistId } = req.params;
